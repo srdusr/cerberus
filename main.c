@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <openssl/aes.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
 
 #define MAX_PASSWORD_LENGTH 128
+#define AES_KEY_SIZE 256 / 8
 
 struct Password {
     char website[128];
@@ -18,49 +20,55 @@ void generate_password(char *password, int length) {
     char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}\\|;:'\",.<>/?";
     int charset_size = strlen(charset);
 
-    for (int i = 0; i < length - 1; i++) {
+    for (int i = 0; i < length; i++) {
         int index = rand() % charset_size;
         password[i] = charset[index];
     }
 
-    password[length - 1] = '\0';
+    password[length] = '\0';
 }
 
 void encrypt_password(struct Password *password, unsigned char *key) {
     AES_KEY aes_key;
     unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char encrypted_password[MAX_PASSWORD_LENGTH];
+    unsigned char encrypted_password[AES_BLOCK_SIZE];
 
     // Generate a random initialization vector
     RAND_bytes(iv, AES_BLOCK_SIZE);
 
     // Initialize the encryption key
-    AES_set_encrypt_key(key, AES_BLOCK_SIZE * 8, &aes_key);
+    AES_set_encrypt_key(key, AES_KEY_SIZE, &aes_key);
 
     // Encrypt the password using AES-256 encryption
-    AES_cbc_encrypt(password->password, encrypted_password, MAX_PASSWORD_LENGTH, &aes_key, iv, AES_ENCRYPT);
+    AES_cbc_encrypt(password->password, encrypted_password, AES_BLOCK_SIZE, &aes_key, iv, AES_ENCRYPT);
 
     // Copy the encrypted password and IV back into the password struct
-    memcpy(password->password, encrypted_password, MAX_PASSWORD_LENGTH);
+    memcpy(password->password, encrypted_password, AES_BLOCK_SIZE);
     memcpy(password->notes, iv, AES_BLOCK_SIZE);
 }
 
 void decrypt_password(struct Password *password, unsigned char *key) {
-    AES_KEY aes_key;
+    EVP_CIPHER_CTX *ctx;
     unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char decrypted_password[MAX_PASSWORD_LENGTH];
+    unsigned char decrypted_password[AES_BLOCK_SIZE];
 
     // Read the initialization vector from the password struct
     memcpy(iv, password->notes, AES_BLOCK_SIZE);
 
-    // Initialize the decryption key
-    AES_set_decrypt_key(key, AES_BLOCK_SIZE * 8, &aes_key);
+    // Initialize the decryption context
+    ctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
 
     // Decrypt the password using AES-256 decryption
-    AES_cbc_encrypt(password->password, decrypted_password, MAX_PASSWORD_LENGTH, &aes_key, iv, AES_DECRYPT);
+    int outlen;
+    EVP_DecryptUpdate(ctx, decrypted_password, &outlen, password->password, AES_BLOCK_SIZE);
+    int finallen;
+    EVP_DecryptFinal_ex(ctx, decrypted_password + outlen, &finallen);
 
     // Copy the decrypted password back into the password struct
     memcpy(password->password, decrypted_password, MAX_PASSWORD_LENGTH);
+
+    EVP_CIPHER_CTX_free(ctx);
 }
 
 void save_password(struct Password *password, char *filename, unsigned char *key) {
