@@ -15,22 +15,93 @@ struct Password {
 void generate_password(char *password, int length) {
     // Generate a random password of the specified length
     // using a combination of upper and lowercase letters, digits, and special characters
+    char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}\\|;:'\",.<>/?";
+    int charset_size = strlen(charset);
+
+    for (int i = 0; i < length - 1; i++) {
+        int index = rand() % charset_size;
+        password[i] = charset[index];
+    }
+
+    password[length - 1] = '\0';
 }
 
 void encrypt_password(struct Password *password, unsigned char *key) {
+    AES_KEY aes_key;
+    unsigned char iv[AES_BLOCK_SIZE];
+    unsigned char encrypted_password[MAX_PASSWORD_LENGTH];
+
+    // Generate a random initialization vector
+    RAND_bytes(iv, AES_BLOCK_SIZE);
+
+    // Initialize the encryption key
+    AES_set_encrypt_key(key, AES_BLOCK_SIZE * 8, &aes_key);
+
     // Encrypt the password using AES-256 encryption
+    AES_cbc_encrypt(password->password, encrypted_password, MAX_PASSWORD_LENGTH, &aes_key, iv, AES_ENCRYPT);
+
+    // Copy the encrypted password and IV back into the password struct
+    memcpy(password->password, encrypted_password, MAX_PASSWORD_LENGTH);
+    memcpy(password->notes, iv, AES_BLOCK_SIZE);
 }
 
 void decrypt_password(struct Password *password, unsigned char *key) {
+    AES_KEY aes_key;
+    unsigned char iv[AES_BLOCK_SIZE];
+    unsigned char decrypted_password[MAX_PASSWORD_LENGTH];
+
+    // Read the initialization vector from the password struct
+    memcpy(iv, password->notes, AES_BLOCK_SIZE);
+
+    // Initialize the decryption key
+    AES_set_decrypt_key(key, AES_BLOCK_SIZE * 8, &aes_key);
+
     // Decrypt the password using AES-256 decryption
+    AES_cbc_encrypt(password->password, decrypted_password, MAX_PASSWORD_LENGTH, &aes_key, iv, AES_DECRYPT);
+
+    // Copy the decrypted password back into the password struct
+    memcpy(password->password, decrypted_password, MAX_PASSWORD_LENGTH);
 }
 
 void save_password(struct Password *password, char *filename, unsigned char *key) {
     // Save the password information to a file in an encrypted format using AES-256 encryption
+    FILE *fp = fopen(filename, "wb");
+    if (fp == NULL) {
+        printf("Error: could not open file %s for writing.\n", filename);
+        return;
+    }
+
+    // Encrypt the password information
+    encrypt_password(password, key);
+
+    // Write the encrypted password information to the file
+    fwrite(password, sizeof(struct Password), 1, fp);
+
+    fclose(fp);
 }
 
 void load_password(struct Password *password, char *filename, unsigned char *key) {
     // Load the password information from a file and decrypt it using AES-256 decryption
+    // Open the file for reading
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error: Could not open file %s\n", filename);
+        return;
+    }
+
+    // Read the encrypted password information from the file
+    unsigned char iv[AES_BLOCK_SIZE];
+    fread(iv, 1, AES_BLOCK_SIZE, file);
+    unsigned char encrypted[sizeof(struct Password)];
+    fread(encrypted, 1, sizeof(struct Password), file);
+
+    // Decrypt the password information
+    AES_KEY aes_key;
+    AES_set_decrypt_key(key, 256, &aes_key);
+    AES_cbc_encrypt(encrypted, (unsigned char*)password, sizeof(struct Password), &aes_key, iv, AES_DECRYPT);
+
+    // Close the file
+    fclose(file);
 }
 
 int main() {
@@ -91,5 +162,3 @@ int main() {
 
     return 0;
 }
-
-
