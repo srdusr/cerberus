@@ -1,3 +1,11 @@
+// TODO: Fix not specifying password length
+// TODO: Fix not specifying password options for which characters/digits/lowercase or uppercase letters
+// TODO: Fix generated encryption key must not be put in directly by user
+// TODO: Use PBKDF2 for generating keys,
+// TODO: Secret stored in memory must be encrypted with a key derived from the user password or consider making password manager stateless (no passwords stored locally)
+// TODO: Replace CBC with GCM or CCM to prevent padding attacks
+// TODO: Have ascii art of a cerberus on start menu/page
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
