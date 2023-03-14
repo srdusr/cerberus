@@ -3,6 +3,7 @@
 #include <string.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/aes.h>
 
 #define MAX_PASSWORD_LENGTH 128
 #define AES_KEY_SIZE 256 / 8
@@ -37,14 +38,20 @@ void encrypt_password(struct Password *password, unsigned char *key) {
     RAND_bytes(iv, AES_BLOCK_SIZE);
 
     // Initialize the encryption key
-    AES_set_encrypt_key(key, AES_KEY_SIZE, &aes_key);
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
 
     // Encrypt the password using AES-256 encryption
-    AES_cbc_encrypt(password->password, encrypted_password, AES_BLOCK_SIZE, &aes_key, iv, AES_ENCRYPT);
+    int outlen, tmplen;
+    EVP_EncryptUpdate(ctx, encrypted_password, &outlen, (unsigned char*)password->password, AES_BLOCK_SIZE);
+    EVP_EncryptFinal_ex(ctx, encrypted_password + outlen, &tmplen);
 
     // Copy the encrypted password and IV back into the password struct
     memcpy(password->password, encrypted_password, AES_BLOCK_SIZE);
     memcpy(password->notes, iv, AES_BLOCK_SIZE);
+
+    // Clean up
+    EVP_CIPHER_CTX_free(ctx);
 }
 
 void decrypt_password(struct Password *password, unsigned char *key) {
@@ -60,14 +67,14 @@ void decrypt_password(struct Password *password, unsigned char *key) {
     EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
 
     // Decrypt the password using AES-256 decryption
-    int outlen;
-    EVP_DecryptUpdate(ctx, decrypted_password, &outlen, password->password, AES_BLOCK_SIZE);
-    int finallen;
-    EVP_DecryptFinal_ex(ctx, decrypted_password + outlen, &finallen);
+    int outlen, tmplen;
+    EVP_DecryptUpdate(ctx, decrypted_password, &outlen, (unsigned char*)password->password, AES_BLOCK_SIZE);
+    EVP_DecryptFinal_ex(ctx, decrypted_password + outlen, &tmplen);
 
     // Copy the decrypted password back into the password struct
     memcpy(password->password, decrypted_password, MAX_PASSWORD_LENGTH);
 
+    // Clean up
     EVP_CIPHER_CTX_free(ctx);
 }
 
@@ -105,8 +112,12 @@ void load_password(struct Password *password, char *filename, unsigned char *key
 
     // Decrypt the password information
     AES_KEY aes_key;
-    AES_set_decrypt_key(key, 256, &aes_key);
-    AES_cbc_encrypt(encrypted, (unsigned char*)password, sizeof(struct Password), &aes_key, iv, AES_DECRYPT);
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv);
+    int outlen, finallen;
+    EVP_DecryptUpdate(ctx, (unsigned char*)password, &outlen, encrypted, sizeof(struct Password));
+    EVP_DecryptFinal_ex(ctx, ((unsigned char*)password) + outlen, &finallen);
+    EVP_CIPHER_CTX_free(ctx);
 
     // Close the file
     fclose(file);
@@ -120,7 +131,12 @@ int main() {
 
     // Get the encryption key from the user
     printf("Enter the encryption key: ");
-    fgets(key, AES_BLOCK_SIZE, stdin);
+    char key_str[AES_BLOCK_SIZE];
+    printf("Enter the encryption key: ");
+    fgets(key_str, AES_BLOCK_SIZE, stdin);
+    for (int i = 0; i < AES_BLOCK_SIZE; i++) {
+        key[i] = (unsigned char) key_str[i];
+    }
 
     // Loop until the user chooses to exit the program
     do {
