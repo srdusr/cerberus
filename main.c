@@ -40,7 +40,8 @@ void generate_password(char *password, int length) {
 void encrypt_password(struct Password *password, unsigned char *key) {
     AES_KEY aes_key;
     unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char encrypted_password[AES_BLOCK_SIZE];
+    unsigned char encrypted_password[MAX_PASSWORD_LENGTH];
+
 
     // Generate a random initialization vector
     RAND_bytes(iv, AES_BLOCK_SIZE);
@@ -51,7 +52,7 @@ void encrypt_password(struct Password *password, unsigned char *key) {
 
     // Encrypt the password using AES-256 encryption
     int outlen, tmplen;
-    EVP_EncryptUpdate(ctx, encrypted_password, &outlen, (unsigned char*)password->password, AES_BLOCK_SIZE);
+    EVP_EncryptUpdate(ctx, encrypted_password, &outlen, (unsigned char*)password->password, MAX_PASSWORD_LENGTH);
     EVP_EncryptFinal_ex(ctx, encrypted_password + outlen, &tmplen);
 
     // Copy the encrypted password and IV back into the password struct
@@ -65,7 +66,7 @@ void encrypt_password(struct Password *password, unsigned char *key) {
 void decrypt_password(struct Password *password, unsigned char *key) {
     EVP_CIPHER_CTX *ctx;
     unsigned char iv[AES_BLOCK_SIZE];
-    unsigned char decrypted_password[AES_BLOCK_SIZE];
+    unsigned char decrypted_password[MAX_PASSWORD_LENGTH]; // change the buffer size to match the size of the password field in the struct
 
     // Read the initialization vector from the password struct
     memcpy(iv, password->notes, AES_BLOCK_SIZE);
