@@ -23,28 +23,99 @@ void generate_password(char *password, int length) {
     password[i] = charset[index];
   }
 
-  password[length] = '\0'; // Null-terminate the password
+  password[length] = '\0';
   printf("Generated Password: %s\n", password);
 }
 
-void save_password(struct Password *password, const char *dir) {
-  // Save the password information to a file
-  FILE *fp;
+void derive_key(unsigned char *key, const char *password, unsigned char *salt) {
+  PKCS5_PBKDF2_HMAC(password, strlen(password), salt, SALT_SIZE,
+                    PBKDF2_ITERATIONS, EVP_sha256(), AES_KEY_SIZE, key);
+}
+
+void encrypt_password(struct Password *password, const char *user_password) {
+  unsigned char iv[AES_BLOCK_SIZE];
+  unsigned char encrypted_password[MAX_PASSWORD_LENGTH];
+
+  RAND_bytes(iv, AES_BLOCK_SIZE);
+
+  unsigned char key[AES_KEY_SIZE];
+  derive_key(key, user_password, iv);
+
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, key, iv);
+
+  int outlen, tmplen;
+  EVP_EncryptUpdate(ctx, encrypted_password, &outlen,
+                    (unsigned char *)password->password,
+                    strlen(password->password));
+  EVP_EncryptFinal_ex(ctx, encrypted_password + outlen, &tmplen);
+
+  memcpy(password->password, encrypted_password, outlen + tmplen);
+  memcpy(password->username, iv, AES_BLOCK_SIZE);
+
+  EVP_CIPHER_CTX_free(ctx);
+}
+
+void decrypt_password(struct Password *password, const char *user_password) {
+  unsigned char iv[AES_BLOCK_SIZE];
+  unsigned char decrypted_password[MAX_PASSWORD_LENGTH];
+  int decrypted_len = 0;
+
+  memcpy(iv, password->username, AES_BLOCK_SIZE);
+
+  unsigned char key[AES_KEY_SIZE];
+  derive_key(key, user_password, iv);
+
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, key, iv);
+
+  int outlen, tmplen;
+  EVP_DecryptUpdate(ctx, decrypted_password, &outlen,
+                    (unsigned char *)password->password,
+                    strlen(password->password));
+  EVP_DecryptFinal_ex(ctx, decrypted_password + outlen, &tmplen);
+
+  decrypted_password[outlen + tmplen] = '\0';
+
+  strcpy(password->password, (char *)decrypted_password);
+
+  EVP_CIPHER_CTX_free(ctx);
+}
+
+void save_password(struct Password *password, const char *website,
+                   const char *dir, const char *user_password) {
+  unsigned char iv[AES_BLOCK_SIZE];
+  RAND_bytes(iv, AES_BLOCK_SIZE);
+
+  unsigned char key[AES_KEY_SIZE];
+  derive_key(key, user_password, iv);
+
+  unsigned char encrypted_password[MAX_PASSWORD_LENGTH];
+  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+  EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, key, iv);
+
+  int outlen, tmplen;
+  EVP_EncryptUpdate(ctx, encrypted_password, &outlen,
+                    (unsigned char *)password->password,
+                    strlen(password->password));
+  EVP_EncryptFinal_ex(ctx, encrypted_password + outlen, &tmplen);
+
   char filename[256];
-  snprintf(filename, sizeof(filename), "%s/%s.dat", dir, password->website);
-  fp = fopen(filename, "wb");
+  snprintf(filename, sizeof(filename), "%s/%s_%s.dat", dir, website,
+           password->username);
+  FILE *fp = fopen(filename, "wb");
   if (fp == NULL) {
     printf("Error: could not open file %s for writing.\n", filename);
     return;
   }
-
-  // Write the password to the file
-  fwrite(password, sizeof(struct Password), 1, fp);
+  fwrite(iv, sizeof(iv), 1, fp);
+  fwrite(encrypted_password, outlen + tmplen, 1, fp);
 
   fclose(fp);
+  EVP_CIPHER_CTX_free(ctx);
 }
 
-void load_passwords(const char *dir) {
+void load_passwords(const char *dir, const char *user_password) {
   printf("Available Passwords:\n");
   DIR *d;
   struct dirent *dir_entry;
@@ -58,17 +129,47 @@ void load_passwords(const char *dir) {
         FILE *file = fopen(filename, "rb");
         if (file != NULL) {
           struct Password password;
-          fread(&password, sizeof(struct Password), 1, file);
 
-          // Null-terminate the strings
+          unsigned char iv[AES_BLOCK_SIZE];
+          fread(iv, sizeof(iv), 1, file);
+
+          unsigned char encrypted_password[MAX_PASSWORD_LENGTH];
+          int len = fread(encrypted_password, 1, MAX_PASSWORD_LENGTH, file);
+
+          unsigned char key[AES_KEY_SIZE];
+          derive_key(key, user_password, iv);
+
+          unsigned char decrypted_password[MAX_PASSWORD_LENGTH];
+          EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+          EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, key, iv);
+
+          int outlen, tmplen;
+          EVP_DecryptUpdate(ctx, decrypted_password, &outlen,
+                            encrypted_password, len);
+          EVP_DecryptFinal_ex(ctx, decrypted_password + outlen, &tmplen);
+
+          decrypted_password[outlen + tmplen] = '\0';
+
+          fclose(file);
+          EVP_CIPHER_CTX_free(ctx);
+
+          // Extract website and username from filename
+          char website[MAX_WEBSITE_LENGTH];
+          char username[MAX_USERNAME_LENGTH];
+          sscanf(dir_entry->d_name, "%[^_]_%[^.]", website, username);
+
+          // Copy decrypted password to password field
+          strncpy(password.website, website, MAX_WEBSITE_LENGTH - 1);
           password.website[MAX_WEBSITE_LENGTH - 1] = '\0';
+          strncpy(password.username, username, MAX_USERNAME_LENGTH - 1);
           password.username[MAX_USERNAME_LENGTH - 1] = '\0';
+          strncpy(password.password, decrypted_password,
+                  MAX_PASSWORD_LENGTH - 1);
           password.password[MAX_PASSWORD_LENGTH - 1] = '\0';
 
           passwords[count++] = password;
           printf("%d. Website: %s, Username: %s\n", count, password.website,
                  password.username);
-          fclose(file);
         }
       }
     }
@@ -92,6 +193,33 @@ void copy_to_clipboard(char *text) {
   }
 }
 
+void print_ascii_art(const char *filename) {
+  FILE *file = fopen(filename, "r");
+  if (file == NULL) {
+    printf("Unable to open ASCII art file.\n");
+    return;
+  }
+
+  // Get console width
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  int console_width = w.ws_col;
+
+  char line[256];
+  while (fgets(line, sizeof(line), file)) {
+    // Calculate padding for centering
+    int padding = (console_width - strlen(line)) / 2;
+    if (padding > 0) {
+      for (int i = 0; i < padding; i++) {
+        printf(" ");
+      }
+    }
+    printf("%s", line);
+  }
+
+  fclose(file);
+}
+
 int main() {
   const char *dir = "tmp"; // Directory to store password files
   mkdir(dir, 0700);        // Create directory if it doesn't exist
@@ -102,7 +230,7 @@ int main() {
   if (key_file == NULL) {
     printf("Enter your new master password: ");
     fgets(user_password, sizeof(user_password), stdin);
-    user_password[strcspn(user_password, "\n")] = 0; // Remove newline character
+    user_password[strcspn(user_password, "\n")] = 0;
 
     // Save master password to file
     key_file = fopen("master.key", "wb");
@@ -128,6 +256,9 @@ int main() {
     }
   }
 
+  // Print ASCII art
+  print_ascii_art("ascii-art.txt");
+
   int choice;
   while (1) {
     printf("\n1. Create New Password\n");
@@ -151,13 +282,13 @@ int main() {
       scanf("%s", password.website);
       printf("Enter username: ");
       scanf("%s", password.username);
-      save_password(&password, dir);
+      save_password(&password, password.website, dir, user_password);
       printf("Password information saved to %s\n", password.website);
       passwords[numPasswords++] = password;
       break;
     }
     case 2: {
-      load_passwords(dir);
+      load_passwords(dir, user_password);
       printf("Enter the number of the password to copy (0 to cancel): ");
       int selection;
       scanf("%d", &selection);
