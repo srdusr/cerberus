@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include <ctype.h>
 #include <dirent.h>
 #include <openssl/aes.h>
 #include <openssl/err.h>
@@ -42,4 +43,4 @@ void load_passwords(const char *dir, const char *user_password);
 void copy_to_clipboard(char *text);
 void print_ascii_art(const char *filename);
 
-#endif /* MAIN_H */
+#endif
