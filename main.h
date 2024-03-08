@@ -39,6 +39,7 @@ extern int numPasswords;
 void generate_password(char *password, int length);
 void save_password(struct Password *password, const char *website,
                    const char *dir, const char *user_password);
+void edit_password(struct Password *password);
 void load_passwords(const char *dir, const char *user_password);
 void copy_to_clipboard(char *text);
 void print_ascii_art(const char *filename);
