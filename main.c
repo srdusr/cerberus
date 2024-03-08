@@ -211,6 +211,76 @@ void save_password(struct Password *password, const char *website,
   EVP_CIPHER_CTX_free(ctx);
 }
 
+void edit_password(struct Password *password) {
+  int choice;
+  printf("\nEdit Password:\n");
+  printf("1. Website: %s\n", password->website);
+  printf("2. Username: %s\n", password->username);
+  printf("3. Password: %s\n", password->password);
+  printf("4. Cancel\n");
+  printf("Enter your choice: ");
+  scanf("%d", &choice);
+  clear_input_buffer();
+
+  switch (choice) {
+  case 1: {
+    char old_filename[256];
+    snprintf(old_filename, sizeof(old_filename), "tmp/%s_%s.dat",
+             password->website, password->username);
+    if (remove(old_filename) != 0) {
+      printf("Error deleting old password file.\n");
+    }
+
+    printf("Enter new website: ");
+    fgets(password->website, sizeof(password->website), stdin);
+    password->website[strcspn(password->website, "\n")] =
+        0; // Remove newline character
+    printf("Website updated.\n");
+    save_password(password, password->website, "tmp", "user_password");
+    break;
+  }
+  case 2: {
+    char old_filename[256];
+    snprintf(old_filename, sizeof(old_filename), "tmp/%s_%s.dat",
+             password->website, password->username);
+    if (remove(old_filename) != 0) {
+      printf("Error deleting old password file.\n");
+    }
+
+    printf("Enter new username: ");
+    fgets(password->username, sizeof(password->username), stdin);
+    password->username[strcspn(password->username, "\n")] =
+        0; // Remove newline character
+    printf("Username updated.\n");
+    save_password(password, password->website, "tmp", "user_password");
+    break;
+  }
+  case 3: {
+    int length;
+    do {
+      printf("Enter new password length: ");
+      scanf("%d", &length);
+      clear_input_buffer();
+      if (length < 8 || length > MAX_PASSWORD_LENGTH - 1) {
+        printf("Invalid password length. Please enter a length between 8 and "
+               "%d.\n",
+               MAX_PASSWORD_LENGTH - 1);
+      }
+    } while (length < 8 || length > MAX_PASSWORD_LENGTH - 1);
+    generate_password(password->password, length);
+    printf("Password updated.\n");
+    save_password(password, password->website, "tmp", "user_password");
+    break;
+  }
+  case 4:
+    printf("Canceled.\n");
+    break;
+  default:
+    printf("Invalid choice.\n");
+    break;
+  }
+}
+
 void load_passwords(const char *dir, const char *user_password) {
   printf("Available Passwords:\n");
   DIR *d;
@@ -395,7 +465,7 @@ int main() {
     }
     case 2: {
       load_passwords(dir, user_password);
-      printf("Enter the number of the password to copy (0 to cancel): ");
+      printf("Enter the number of the password to view or 0 to cancel: ");
       int selection;
       scanf("%d", &selection);
       clear_input_buffer();
@@ -405,20 +475,92 @@ int main() {
         printf("- Website: %s\n", selected_password.website);
         printf("- Username: %s\n", selected_password.username);
         printf("- Password: %s\n", selected_password.password);
-        printf("Copy to clipboard? (1 for Password, 2 for Username, 0 to "
-               "cancel): ");
+        printf("1. Copy Username and/or Password\n");
+        printf("2. Edit the Password\n");
+        printf("3. Delete the Password\n");
+        printf("0. Cancel\n");
+        printf("Enter your choice: ");
         int copy_choice;
         scanf("%d", &copy_choice);
         clear_input_buffer();
         switch (copy_choice) {
         case 1:
-          copy_to_clipboard(selected_password.password);
+          // Provide options for copying username and/or password
+          printf("1. Copy Username and Password\n");
+          printf("2. Copy just the Password\n");
+          printf("3. Copy just the Username\n");
+          printf("0. Cancel\n");
+          printf("Enter your choice: ");
+          int sub_copy_choice;
+          scanf("%d", &sub_copy_choice);
+          clear_input_buffer();
+          switch (sub_copy_choice) {
+          case 1:
+            // Copy both username and password
+            {
+              char copy_text[MAX_PASSWORD_LENGTH * 2 +
+                             2]; // Max length of both plus space
+              snprintf(copy_text, sizeof(copy_text),
+                       "Username: %s, Password: %s", selected_password.username,
+                       selected_password.password);
+              copy_to_clipboard(copy_text);
+              printf("Username and Password copied to clipboard.\n");
+            }
+            break;
+          case 2:
+            // Copy just the password
+            copy_to_clipboard(selected_password.password);
+            printf("Password copied to clipboard.\n");
+            break;
+          case 3:
+            // Copy just the username
+            copy_to_clipboard(selected_password.username);
+            printf("Username copied to clipboard.\n");
+            break;
+          case 0:
+            printf("Canceled.\n");
+            break;
+          default:
+            printf("Invalid choice.\n");
+          }
           break;
         case 2:
-          copy_to_clipboard(selected_password.username);
+          edit_password(&selected_password);
+          save_password(&selected_password, selected_password.website, dir,
+                        user_password);
+          printf("Password updated.\n");
+          break;
+        case 3: {
+          struct Password selected_password = passwords[selection - 1];
+          printf("Are you sure you want to delete this password? (y/n): ");
+          char confirm;
+          scanf(" %c", &confirm);
+          clear_input_buffer();
+          if (confirm == 'y' || confirm == 'Y') {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/%s_%s.dat", dir,
+                     selected_password.website, selected_password.username);
+            if (remove(filename) != 0) {
+              printf("Error deleting password file.\n");
+            } else {
+              printf("Password deleted.\n");
+              // Shift remaining passwords to fill the gap
+              for (int i = selection - 1; i < numPasswords - 1; i++) {
+                passwords[i] = passwords[i + 1];
+              }
+              numPasswords--;
+            }
+          } else {
+            printf("Password not deleted.\n");
+          }
+          break;
+        }
+
+        case 0:
+          printf("Canceled.\n");
           break;
         default:
-          printf("Canceled.\n");
+          printf("Invalid choice.\n");
         }
       } else if (selection != 0) {
         printf("Invalid selection.\n");
