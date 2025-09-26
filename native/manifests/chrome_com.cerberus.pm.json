@@ -1,0 +1,9 @@
+{
+  "name": "com.cerberus.pm",
+  "description": "Cerberus Password Manager Native Messaging Host (dev)",
+  "path": "/usr/local/bin/cerberus-native-host",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_WITH_EXTENSION_ID/"
+  ]
+}

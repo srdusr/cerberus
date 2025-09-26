@@ -1,0 +1,35 @@
+{
+  "manifest_version": 2,
+  "name": "Cerberus Password Manager",
+  "version": "0.1.0",
+  "description": "Auto-fill and manage passwords with Cerberus.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus",
+    "tabs",
+    "nativeMessaging",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "browser_action": {
+    "default_title": "Cerberus",
+    "default_popup": "popup.html"
+  }
+  ,
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "cerberus@example.com"
+    }
+  }
+}

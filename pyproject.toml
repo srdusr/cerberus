@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=42", "wheel", "cffi>=1.15.0", "cmake"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cerberus-pm"
+version = "0.1.0"
+description = "A secure password manager with a high-performance C core"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "srdusr", email = "trevorgray@srdusr.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Security",
+    "Topic :: Security :: Cryptography",
+]
+dependencies = [
+    "cffi>=1.15.0",
+    "cryptography>=3.4.0",
+    "playwright>=1.15.0",
+    "python-dotenv>=0.19.0",
+    "rich>=13.0.0",
+    "click>=8.0.0",
+    "pyperclip>=1.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0.0",
+    "black>=21.0",
+    "mypy>=0.9.0",
+    "flake8>=3.9.0",
+]
+automation-selenium = [
+    "selenium>=4.10.0",
+]
+ui-tui = [
+    "textual>=0.40.0",
+    "rich>=13.0.0",
+]
+ui-gui = [
+    "PyQt6>=6.5.0",
+]
+
+[project.scripts]
+cerberus = "cerberus.cli.main:cli"
+cerberus-gui = "cerberus.cli.main:gui"
+cerberus-native-host = "cerberus.native.host:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = { find = { where = ["src"], include = ["cerberus*"] } }
+include-package-data = true
+
+[tool.setuptools.package-data]
+"cerberus.core" = ["*.h", "*.c"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
