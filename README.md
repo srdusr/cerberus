@@ -278,4 +278,4 @@ NOTE: This program is still in very early stages of development and should not b
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
