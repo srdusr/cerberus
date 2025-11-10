@@ -1,33 +1,33 @@
-# 🐕 Cerberus Password Manager
+# Cerberus Password Manager
 
 A secure, high-performance password manager with a C core for cryptographic operations, featuring a modern TUI, GUI, and browser extensions.
 
-## 🚀 Features
+## Features
 
 - **High-performance** cryptographic operations powered by a C core
 - **Secure** password storage with zero-knowledge encryption
 - **Cross-platform** support (Windows, macOS, Linux)
 - **Multiple Interfaces**:
-  - 🔍 Command Line Interface (CLI)
-  - 🖥️ Terminal User Interface (TUI)
-  - 🖱️ Graphical User Interface (GUI)
-  - 🌐 Browser Extensions (Firefox, Chrome/Edge)
+  - Command Line Interface (CLI)
+  - Terminal User Interface (TUI)
+  - Graphical User Interface (GUI)
+  - Browser Extensions (Firefox, Chrome/Edge)
 - **Smart Password Management**:
-  - 🔄 Auto-detection of password change forms
-  - 🔄 One-click password rotation
-  - 🔒 Password strength analysis
-  - 🚨 Breach monitoring
+  - Auto-detection of password change forms
+  - One-click password rotation
+  - Password strength analysis
+  - Breach monitoring
 - **Browser Integration**:
-  - 🔌 Auto-fill login forms
-  - 🔄 Auto-save new logins
-  - 🔄 Auto-update changed passwords
-  - 🎯 Smart detection of login forms
+  - Auto-fill login forms
+  - Auto-save new logins
+  - Auto-update changed passwords
+  - Smart detection of login forms
 - **Import/Export** from other password managers
 - **Biometric** authentication support
 - **Secure Sharing** of passwords (coming soon)
 - **CLI, TUI, and GUI** interfaces for all operations
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -92,7 +92,7 @@ Environment variables:
 - `CERB_INSTALL_CHROME=1`: also install Chrome native messaging manifest.
 - `CERB_SKIP_BUILD=1`: skip building the C core via CMake.
 
-## 🛠️ Usage
+## Usage
 
 ### Command Line Interface (CLI)
 
@@ -209,7 +209,7 @@ CERB_MASTER='your-master' CERB_DATA_DIR=~/.cerberus cerberus-native-host
 
 In the extension popup, click "Fetch from Vault" to retrieve credentials for the current tab.
 
-## 🔄 Password Change Automation
+## Password Change Automation
 
 Cerberus can automatically detect and handle many password change flows via web automation.
 It uses a hybrid approach:
@@ -233,7 +233,7 @@ Limitations: Some sites require MFA/2FA or complex flows; in those cases the too
 return a NEEDS_MANUAL status and avoid unsafe actions.
 ```
 
-## 🛠 Development
+## Development
 
 ### Setup Development Environment
 
@@ -257,22 +257,15 @@ black .
 flake8
 ```
 
-### Building Browser Extensions
-
-```bash
-The Firefox development extension needs no build step. For Chromium-based browsers
-and production bundles, a separate web extension build pipeline will be added.
-```
-
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔒 Security
+## Security
 
 NOTE: This program is still in very early stages of development and should not be used in any production environment, use at your own risk.
 
